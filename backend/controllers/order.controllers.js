@@ -508,39 +508,48 @@ export const sendDeliveryOtp = async (req, res) => {
   try {
     const { orderId, shopOrderId } = req.body
 
+    // 1️⃣ Validate input
+    if (!orderId || !shopOrderId) {
+      return res.status(400).json({ message: "Missing order data" })
+    }
+
+    // 2️⃣ Fetch order
     const order = await Order.findById(orderId).populate("user")
     if (!order) {
-      return res.status(400).json({ message: "order not found" })
+      return res.status(404).json({ message: "Order not found" })
     }
 
     const shopOrder = order.shopOrders.id(shopOrderId)
     if (!shopOrder) {
-      return res.status(400).json({ message: "shop order not found" })
+      return res.status(404).json({ message: "Shop order not found" })
     }
 
-    // 1️⃣ Generate OTP
+    // 3️⃣ Generate OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString()
 
-    // 🔴 PUT THIS LINE EXACTLY HERE 👇
-    console.log("DELIVERY OTP:", otp)
-
-    // 2️⃣ Save OTP
+    // 4️⃣ Save OTP
     shopOrder.deliveryOtp = otp
     shopOrder.otpExpires = Date.now() + 5 * 60 * 1000
     await order.save()
 
-    // 3️⃣ TEMPORARILY COMMENT EMAIL (VERY IMPORTANT)
-    // await sendDeliveryOtpMail(order.user, otp)
+    // 5️⃣ Send OTP email SAFELY (never crash API)
+    try {
+      await sendDeliveryOtpMail(order.user, otp)
+    } catch (mailError) {
+      console.error("Delivery Mail Error:", mailError.message)
+      // email failed, but OTP still valid
+    }
 
     return res.status(200).json({
-      message: "OTP generated successfully"
+      message: "OTP sent successfully"
     })
 
   } catch (error) {
-    console.error("DELIVERY OTP ERROR:", error)
-    return res.status(500).json({ message: "delivery otp error" })
+    console.error("SEND DELIVERY OTP ERROR:", error)
+    return res.status(500).json({ message: "Internal server error" })
   }
 }
+
 
 
 export const verifyDeliveryOtp = async (req, res) => {
