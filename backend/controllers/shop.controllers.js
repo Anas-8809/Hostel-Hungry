@@ -42,18 +42,36 @@ export const getMyShop=async (req,res) => {
     }
 }
 
-export const getShopByCity=async (req,res) => {
-    try {
-        const {city}=req.params
+// export const getShopByCity=async (req,res) => {
+//     try {
+//         const {city}=req.params
 
-        const shops=await Shop.find({
-            city:{$regex:new RegExp(`^${city}$`, "i")}
-        }).populate('items')
-        if(!shops){
-            return res.status(400).json({message:"shops not found"})
+//         const shops=await Shop.find({
+//             city:{$regex:new RegExp(`^${city}$`, "i")}
+//         }).populate('items')
+//         if(!shops){
+//             return res.status(400).json({message:"shops not found"})
+//         }
+//         return res.status(200).json(shops)
+//     } catch (error) {
+//         return res.status(500).json({message:`get shop by city error ${error}`})
+//     }
+// }
+export const getShopByCity = async (req, res) => {
+    try {
+        const { city } = req.params;
+
+        const shops = await Shop.find({
+            city: { $regex: new RegExp(`^${city}$`, "i") }
+        })
+        .populate("owner", "fullName email mobile") // ✅ ADD THIS: Populates owner details
+        .populate("items"); 
+
+        if (!shops || shops.length === 0) {
+            return res.status(404).json({ message: "Shops not found" });
         }
-        return res.status(200).json(shops)
+        return res.status(200).json(shops);
     } catch (error) {
-        return res.status(500).json({message:`get shop by city error ${error}`})
+        return res.status(500).json({ message: `get shop by city error ${error}` });
     }
 }
