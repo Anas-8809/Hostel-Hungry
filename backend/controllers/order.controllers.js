@@ -508,13 +508,12 @@ export const sendDeliveryOtp = async (req, res) => {
   try {
     const { orderId, shopOrderId } = req.body
 
-    // 1️⃣ Validate input
     if (!orderId || !shopOrderId) {
       return res.status(400).json({ message: "Missing order data" })
     }
 
-    // 2️⃣ Fetch order
-    const order = await Order.findById(orderId).populate("user")
+    // Fetch order and populate only necessary fields
+    const order = await Order.findById(orderId).populate("user", "fullName email mobile")
     if (!order) {
       return res.status(404).json({ message: "Order not found" })
     }
@@ -524,42 +523,34 @@ export const sendDeliveryOtp = async (req, res) => {
       return res.status(404).json({ message: "Shop order not found" })
     }
 
-    // 3️⃣ Generate OTP
+    // Generate OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString()
-
-    // 4️⃣ Save OTP
     shopOrder.deliveryOtp = otp
     shopOrder.otpExpires = Date.now() + 5 * 60 * 1000
     await order.save()
 
-    // 5️⃣ Send OTP email safely (optional)
-    try {
-      await sendDeliveryOtpMail(order.user, otp)
-    } catch (mailError) {
-      console.error("Delivery Mail Error:", mailError.message)
-    }
+    console.log("User mobile before sending OTP:", order.user.mobile)
 
-    // 6️⃣ Send OTP via SMS safely
-    if (!order.user.mobile) {
-      console.warn("User mobile missing, skipping SMS OTP")
-    } else {
+    // Send SMS safely
+    if (order.user.mobile) {
       try {
         await sendDeliveryOtpSms(order.user, otp)
         console.log("DELIVERY OTP SMS SENT:", otp, "to", order.user.mobile)
       } catch (smsError) {
         console.error("Delivery SMS Error:", smsError.message)
       }
+    } else {
+      console.warn("User mobile missing, skipping SMS OTP")
     }
 
-    return res.status(200).json({
-      message: "OTP sent successfully"
-    })
+    return res.status(200).json({ message: "OTP sent successfully" })
 
   } catch (error) {
     console.error("SEND DELIVERY OTP ERROR:", error)
     return res.status(500).json({ message: "Internal server error" })
   }
 }
+
 
 
 
